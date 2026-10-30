@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Download and extract CalMS21 Task 1 using only the Python standard library."""
+"""Download and extract CalMS21 Task 1 (optionally using certifi for HTTPS)."""
 
 import argparse
 import hashlib
 import shutil
+import ssl
 import sys
 import time
 import urllib.error
@@ -24,6 +25,17 @@ DOWNLOADS = {
 CHUNK_SIZE = 1024 * 1024
 
 
+def create_ssl_context():
+    context = ssl.create_default_context()
+    try:
+        import certifi
+    except ImportError:
+        pass
+    else:
+        context.load_verify_locations(cafile=certifi.where())
+    return context
+
+
 def md5(path):
     digest = hashlib.md5()
     with path.open("rb") as stream:
@@ -32,7 +44,7 @@ def md5(path):
     return digest.hexdigest()
 
 
-def download(url, destination, expected_md5):
+def download(url, destination, expected_md5, context=None):
     """Keep verified downloads; replace missing or damaged files atomically."""
     if destination.is_file() and md5(destination) == expected_md5:
         print(f"Verified, skipping download: {destination.name}", flush=True)
@@ -43,7 +55,7 @@ def download(url, destination, expected_md5):
         try:
             print(f"Downloading {destination.name} (attempt {attempt}/3)...", flush=True)
             request = urllib.request.Request(url, headers={"User-Agent": "BME522-data-setup/1.0"})
-            with urllib.request.urlopen(request, timeout=60) as response, partial.open("wb") as output:
+            with urllib.request.urlopen(request, timeout=60, context=context) as response, partial.open("wb") as output:
                 received = 0
                 next_update = 32 * CHUNK_SIZE
                 for chunk in iter(lambda: response.read(CHUNK_SIZE), b""):
@@ -113,11 +125,12 @@ def main():
         help="Dataset directory (default: this project's data/ directory).",
     )
     args = parser.parse_args()
+    context = create_ssl_context()
     raw = args.data_dir.resolve() / "raw"
     raw.mkdir(parents=True, exist_ok=True)
     (args.data_dir / "processed").mkdir(parents=True, exist_ok=True)
     for name, checksum in DOWNLOADS.items():
-        download(f"{SOURCE}/{name}?download=1", raw / name, checksum)
+        download(f"{SOURCE}/{name}?download=1", raw / name, checksum, context=context)
     extract(raw / "task1_classic_classification.zip", raw)
     print(f"\nCalMS21 Task 1 is ready in {raw / 'task1_classic_classification'}")
 
@@ -129,5 +142,5 @@ if __name__ == "__main__":
         print(f"Setup failed: {error}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:
-        print("\nSetup interrupted. Rerun the same command to finish.", file=sys.stderr)
+        print(f"\nSetup interrupted. Rerun the same command to finish.", file=sys.stderr)
         sys.exit(130)

@@ -10,6 +10,13 @@ CalMS21 Task 1. Labels: attack, investigation, mount, and other.
 python3 scripts/setup_data.py
 ```
 
+If you get certificate verify error
+
+```sh
+python3 -m pip install --upgrade certifi
+python3 scripts/setup_data.py
+```
+
 ## Planned modules
 
 Add these files when implementing their corresponding steps:
