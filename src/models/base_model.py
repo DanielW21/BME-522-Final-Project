@@ -1,14 +1,11 @@
 from abc import ABC, abstractmethod
 
-class BaseModel(ABC):
-    """
-    base class for all prediction models
-    """
 
+class BaseModel(ABC):
     @abstractmethod
     def fit(self, X, y):
-        pass
+        """Learn from the training features and labels."""
 
     @abstractmethod
     def predict(self, X):
-        pass
+        """Return one predicted label per input row."""
