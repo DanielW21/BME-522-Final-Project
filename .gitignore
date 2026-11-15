@@ -14,3 +14,8 @@ __pycache__/
 .ruff_cache/
 .ipython/
 .ipynb_checkpoints/
+
+!*.tex
+!*.pdf
+*.aux
+*.log

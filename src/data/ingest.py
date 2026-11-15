@@ -7,21 +7,13 @@ import ijson
 import numpy as np
 from sklearn.model_selection import GroupShuffleSplit
 
-from src.features.pose import FEATURE_SETS, extract_pose_features
-
-
-LABEL_NAMES = {
-    0: "attack",
-    1: "investigation",
-    2: "mount",
-    3: "other",
-}
+from src.data.preprocessing import LABEL_NAMES, get_video_arrays, iter_videos
+from src.features import FEATURE_SETS, TREBA_FEATURES, extract_pose_features
 
 
 def iter_training_videos(training_json):
     """Yield one video payload at a time from the annotated Task 1 training file."""
-    with Path(training_json).open("rb") as source:
-        yield from ijson.kvitems(source, "annotator-id_0")
+    yield from iter_videos(training_json)
 
 
 def list_video_ids(training_json):
@@ -91,25 +83,43 @@ def ensure_split_manifest(training_json, manifest_path, random_seed, validation_
 
 
 def _video_arrays(video_id, payload):
-    keypoints = np.asarray(payload["keypoints"], dtype=np.float32)
-    scores = np.asarray(payload["scores"], dtype=np.float32)
-    labels = np.asarray(payload["annotations"], dtype=np.int64)
-    if keypoints.ndim != 4 or keypoints.shape[1:] != (2, 2, 7):
-        raise ValueError(f"Unexpected keypoint shape in {video_id}: {keypoints.shape}")
-    if scores.shape != (len(keypoints), 2, 7):
-        raise ValueError(f"Unexpected score shape in {video_id}: {scores.shape}")
-    if labels.shape != (len(keypoints),):
-        raise ValueError(f"Keypoints, scores, and labels do not align in {video_id}.")
-    unknown_labels = set(np.unique(labels)) - set(LABEL_NAMES)
-    if unknown_labels:
-        raise ValueError(f"Unknown labels in {video_id}: {sorted(unknown_labels)}")
+    keypoints, _, labels = get_video_arrays(payload, video_id=video_id)
     return keypoints, labels
 
 
-def load_development_data(training_json, manifest_path, feature_set="spatial_motion"):
-    """Return train/validation arrays, labels, and per-frame video groups."""
+def _assemble_split_parts(parts, feature_names):
+    """Combine per-video arrays while preserving video-to-frame group IDs."""
+    result = {}
+    for split_name, videos in parts.items():
+        if not videos:
+            raise ValueError(f"No videos assigned to {split_name}.")
+        result[f"X_{split_name}"] = np.concatenate([video[1] for video in videos])
+        result[f"y_{split_name}"] = np.concatenate([video[2] for video in videos])
+        result[f"{split_name}_video_ids"] = [video[0] for video in videos]
+        result[f"{split_name}_groups"] = np.concatenate(
+            [np.full(len(video[2]), index, dtype=np.int16) for index, video in enumerate(videos)]
+        )
+    result["feature_names"] = list(feature_names)
+    return result
+
+
+def load_development_data(
+    training_json,
+    manifest_path,
+    feature_set="spatial_motion",
+    feature_json=None,
+):
+    """Return train/validation arrays, labels, and per-frame video groups.
+
+    ``feature_set="treba"`` loads the precomputed 32-dimensional feature file
+    and aligns each video to its annotations by video ID and frame count.
+    """
     if feature_set not in FEATURE_SETS:
         raise ValueError(f"Unknown feature set {feature_set!r}; choose from {list(FEATURE_SETS)}")
+    if feature_set == "treba":
+        if feature_json is None:
+            raise ValueError("feature_json is required when feature_set='treba'.")
+        return load_treba_development_data(training_json, feature_json, manifest_path)
 
     assignments = read_split_manifest(manifest_path)
     feature_names = FEATURE_SETS[feature_set]
@@ -137,15 +147,63 @@ def load_development_data(training_json, manifest_path, feature_set="spatial_mot
             "Commit and reuse one manifest for the project dataset."
         )
 
-    result = {}
-    for split_name, videos in parts.items():
-        if not videos:
-            raise ValueError(f"No videos assigned to {split_name}.")
-        result[f"X_{split_name}"] = np.concatenate([video[1] for video in videos])
-        result[f"y_{split_name}"] = np.concatenate([video[2] for video in videos])
-        result[f"{split_name}_video_ids"] = [video[0] for video in videos]
-        result[f"{split_name}_groups"] = np.concatenate(
-            [np.full(len(video[2]), index, dtype=np.int16) for index, video in enumerate(videos)]
+    return _assemble_split_parts(parts, feature_names)
+
+
+def load_treba_development_data(training_json, feature_json, manifest_path):
+    """Load and align precomputed TREBA features with labels for the saved split."""
+    assignments = read_split_manifest(manifest_path)
+    labels_by_video = {}
+    training_video_ids = set()
+
+    for video_id, payload in iter_training_videos(training_json):
+        if video_id in training_video_ids:
+            raise ValueError(f"Duplicate video ID in training JSON: {video_id}")
+        training_video_ids.add(video_id)
+        if video_id in assignments:
+            _, labels = _video_arrays(video_id, payload)
+            labels_by_video[video_id] = labels
+
+    missing_labels = set(assignments) - training_video_ids
+    unassigned_labels = training_video_ids - set(assignments)
+    if missing_labels or unassigned_labels:
+        raise ValueError(
+            "Split manifest does not match the training JSON: "
+            f"{len(missing_labels)} missing IDs, {len(unassigned_labels)} unassigned IDs."
         )
-    result["feature_names"] = list(feature_names)
-    return result
+
+    parts = {"train": [], "validation": []}
+    found_feature_ids = set()
+    expected_width = len(TREBA_FEATURES)
+    for video_id, payload in iter_videos(feature_json):
+        if video_id not in assignments:
+            continue
+        if video_id in found_feature_ids:
+            raise ValueError(f"Duplicate video ID in TREBA feature JSON: {video_id}")
+        found_feature_ids.add(video_id)
+
+        if "features" not in payload:
+            raise ValueError(f"TREBA record has no 'features' field: {video_id}")
+        features = np.asarray(payload["features"], dtype=np.float32)
+        if features.ndim != 2 or features.shape[1] != expected_width:
+            raise ValueError(
+                f"Expected {expected_width} TREBA features per frame in {video_id}, "
+                f"got {features.shape}."
+            )
+        labels = labels_by_video[video_id]
+        if len(features) != len(labels):
+            raise ValueError(
+                f"TREBA features and annotations do not align in {video_id}: "
+                f"{len(features)} feature rows, {len(labels)} labels."
+            )
+        parts[assignments[video_id]].append((video_id, features, labels))
+
+    missing_features = set(assignments) - found_feature_ids
+    if missing_features:
+        sample_ids = sorted(missing_features)[:5]
+        raise ValueError(
+            f"TREBA feature JSON is missing {len(missing_features)} split videos; "
+            f"examples: {sample_ids}"
+        )
+
+    return _assemble_split_parts(parts, TREBA_FEATURES)

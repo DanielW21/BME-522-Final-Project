@@ -1,0 +1,42 @@
+project:
+  training_json: data/raw/task1_classic_classification/calms21_task1_train.json
+  features_json: data/raw/task1_classic_classification/taskprog_features_task1_train.json
+  split_manifest: results/validation_video_split_seed522.csv
+  random_seed: 522
+  validation_split: 0.20
+  runs_dir: results/runs
+
+run:
+  save_results: true
+  feature_sets: [spatial, spatial_motion]
+  models:
+    majority: true
+    knn: false
+    random_forest: false
+    svm: false
+    mlp: false
+
+model_params:
+  majority: # other class prediction
+  knn:
+    n_neighbors: 15
+    weights: distance
+    n_jobs: -1
+  random_forest:
+    n_estimators: 300
+    max_depth: null
+    min_samples_leaf: 1
+    class_weight: balanced_subsample
+    n_jobs: -1
+  svm:
+    C: 1.0
+    class_weight: balanced
+    max_iter: 5000
+  mlp:
+    hidden_layer_sizes: [64, 32]
+    activation: relu
+    alpha: 0.0001
+    batch_size: 512
+    learning_rate_init: 0.001
+    max_iter: 50
+    early_stopping: false
