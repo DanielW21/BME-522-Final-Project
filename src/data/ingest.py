@@ -1,9 +1,9 @@
-"""Load CalMS21 videos using one shared video-level development split."""
+"""Load CalMS21 videos using one shared identity-grouped development split."""
 
 import csv
+import re
 from pathlib import Path
 
-import ijson
 import numpy as np
 from sklearn.model_selection import GroupShuffleSplit
 
@@ -14,20 +14,6 @@ from src.features import FEATURE_SETS, TREBA_FEATURES, extract_pose_features
 def iter_training_videos(training_json):
     """Yield one video payload at a time from the annotated Task 1 training file."""
     yield from iter_videos(training_json)
-
-
-def list_video_ids(training_json):
-    """Read video IDs without building each video's keypoint arrays in memory."""
-    video_ids = []
-    with Path(training_json).open("rb") as source:
-        for prefix, event, value in ijson.parse(source):
-            if prefix == "annotator-id_0" and event == "map_key":
-                video_ids.append(value)
-    if not video_ids:
-        raise ValueError(f"No Task 1 training videos found in {training_json}")
-    if len(video_ids) != len(set(video_ids)):
-        raise ValueError("The training JSON contains duplicate video IDs.")
-    return sorted(video_ids)
 
 
 def read_split_manifest(manifest_path):
@@ -52,34 +38,91 @@ def read_split_manifest(manifest_path):
     return assignments
 
 
-def ensure_split_manifest(training_json, manifest_path, random_seed, validation_split=0.2):
-    """Reuse the saved split or create the deterministic sorted-video split once."""
-    manifest_path = Path(manifest_path)
-    if manifest_path.is_file():
-        return read_split_manifest(manifest_path)
+def create_validation_assignments(
+    training_json, random_seed, validation_split, split_candidates
+):
+    """Choose a fixed identity-grouped split with representative class and frame shares."""
+    video_ids = []
+    identity_ids = []
+    frame_counts = []
+    class_counts = []
+    for video_id, payload in iter_training_videos(training_json):
+        labels = np.asarray(payload["annotations"], dtype=np.int64)
+        video_ids.append(video_id)
+        identity_ids.append(re.search(r"mouse\d+", video_id).group())
+        frame_counts.append(len(labels))
+        class_counts.append(np.bincount(labels, minlength=len(LABEL_NAMES)))
 
-    video_ids = list_video_ids(training_json)
+    order = np.argsort(video_ids)
+    video_ids = np.asarray(video_ids, dtype=object)[order]
+    identity_ids = np.asarray(identity_ids, dtype=object)[order]
+    frame_counts = np.asarray(frame_counts)[order]
+    class_counts = np.stack(class_counts)[order]
+    overall_share = class_counts.sum(axis=0) / class_counts.sum()
+
     splitter = GroupShuffleSplit(
-        n_splits=1,
+        n_splits=split_candidates,
         test_size=validation_split,
         random_state=random_seed,
     )
-    _, validation_indices = next(
-        splitter.split(np.arange(len(video_ids)), groups=video_ids)
-    )
-    validation_ids = {video_ids[index] for index in validation_indices}
-    assignments = {
-        video_id: "validation" if video_id in validation_ids else "train"
-        for video_id in video_ids
-    }
+    best_score = np.inf
+    best_validation_indices = None
+    for train_indices, validation_indices in splitter.split(
+        np.arange(len(video_ids)), groups=identity_ids
+    ):
+        train_counts = class_counts[train_indices].sum(axis=0)
+        validation_counts = class_counts[validation_indices].sum(axis=0)
+        if (train_counts == 0).any() or (validation_counts == 0).any():
+            continue
 
+        train_share = train_counts / train_counts.sum()
+        validation_share = validation_counts / validation_counts.sum()
+        class_error = (
+            np.abs(train_share - overall_share) / overall_share
+        ).mean()
+        class_error += (
+            np.abs(validation_share - overall_share) / overall_share
+        ).mean()
+        frame_error = abs(
+            frame_counts[validation_indices].sum() / frame_counts.sum()
+            - validation_split
+        ) / validation_split
+        score = class_error + frame_error
+        if score < best_score:
+            best_score = score
+            best_validation_indices = validation_indices
+
+    assignments = {video_id: "train" for video_id in video_ids}
+    for index in best_validation_indices:
+        assignments[video_ids[index]] = "validation"
+
+    return assignments
+
+
+def write_split_manifest(assignments, manifest_path):
+    """Write one video ID and split assignment per CSV row."""
+    manifest_path = Path(manifest_path)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     with manifest_path.open("w", newline="", encoding="utf-8") as output:
         writer = csv.DictWriter(output, fieldnames=["video_id", "split"])
         writer.writeheader()
-        for video_id in video_ids:
+        for video_id in sorted(assignments):
             writer.writerow({"video_id": video_id, "split": assignments[video_id]})
     return assignments
+
+
+def ensure_split_manifest(
+    training_json, manifest_path, random_seed, validation_split, split_candidates
+):
+    """Reuse the saved split or create an identity-grouped, class-balanced split."""
+    manifest_path = Path(manifest_path)
+    if manifest_path.is_file():
+        return read_split_manifest(manifest_path)
+
+    assignments = create_validation_assignments(
+        training_json, random_seed, validation_split, split_candidates
+    )
+    return write_split_manifest(assignments, manifest_path)
 
 
 def _video_arrays(video_id, payload):

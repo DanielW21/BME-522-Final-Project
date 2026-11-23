@@ -4,6 +4,7 @@ project:
   split_manifest: results/validation_video_split_seed522.csv
   random_seed: 522
   validation_split: 0.20
+  split_candidates: 500
   runs_dir: results/runs
 
 run:
@@ -14,10 +15,18 @@ run:
     knn: false
     random_forest: false
     svm: false
-    mlp: false
+    mlp: true
+
+preprocessing:
+  imputation: median
+  scaling:
+    knn: standard
+    random_forest: none
+    svm: standard
+    mlp: standard
 
 model_params:
-  majority: # other class prediction
+  majority: {} # other class prediction
   knn:
     n_neighbors: 15
     weights: distance
@@ -35,6 +44,7 @@ model_params:
   mlp:
     hidden_layer_sizes: [64, 32]
     activation: relu
+    solver: adam
     alpha: 0.0001
     batch_size: 512
     learning_rate_init: 0.001

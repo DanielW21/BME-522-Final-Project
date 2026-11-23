@@ -6,6 +6,7 @@
 \usepackage{algorithmic}
 \usepackage{graphicx}
 \usepackage{textcomp}
+\usepackage{url}
 \usepackage{xcolor}
 \usepackage{booktabs}
 
@@ -14,15 +15,13 @@
 \begin{document}
 
 
-\title{Short and Descriptive Title}
+\title{Comparing Classical Machine Learning Classifiers for Frame-Level Recognition of Mouse Social Behaviour from Pose-Tracking Data}
 % write your names here
-\author{\IEEEauthorblockN{Abc Xyz, Efg Pqr
-% Change your group ID here and Option type
-\IEEEauthorblockA{\textit{SYED 522 -- Group 2, Option A} \\
-\textit{Systems Design Department}\\
-\textit{University of Waterloo, Canada}\\
-\texttt{{\{abc.xyz, efg.pqr}\}@uwaterloo}}
-}}
+\author{\IEEEauthorblockN{Alex Rus, Daniel Wu, Kaviya Gopalakrishnan, Wallace Lee}
+\IEEEauthorblockA{\textit{SYDE/BME 522 -- Group 24, Option 2} \\
+Department of Systems Design Engineering\\
+University of Waterloo, Canada}
+}
 
 \maketitle
 
@@ -34,7 +33,7 @@ Abstract should be around ~300 words max. Do not cite any references here. Abstr
 
 \begin{IEEEkeywords}
 % 2-5 keywords don't use generics ones like Machine-Learning (be more specific)
-Neural Networks, SVM, Linear Regression 
+Mouse social behaviour, Pose tracking, Frame-level classification, Class imbalance, Video-level validation
 \end{IEEEkeywords}
 
 
@@ -48,20 +47,19 @@ What is the topic? Why is this problem relevant? list the existing limitations. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Background}\label{sec:background}
-Background section contains the literature review of the existing approaches for solving the proposed problem. It may also describe any specific method that you're using (lets say SVM). Basically, you want readers to know these topics and the existing literature before describing them your method/study in details.
+Computational ethology uses quantitative methods to study natural behaviour, with the long-term aim of making behavioural measurements more scalable and reproducible~\cite{anderson2014computational}. Prior work spans supervised classification of named behaviours and unsupervised discovery of recurring movement motifs~\cite{berman2014mapping,mathis2020deepbehavior}.
 
-\subsection{SVM}
-Support Vector Machine is a supervised machine learning method invested by Vladimir Vapnik. And more details and citations.
+\subsection{Pose-based behaviour classification}
+Several established systems turn tracked body-part coordinates into behaviour predictions. JAABA provides an interactive supervised-learning workflow in which expert labels train interpretable behaviour classifiers~\cite{kabra2013jaaba}. MARS focuses on pose estimation and social-behaviour classification for interacting mice~\cite{segalin2021mars}. SimBA develops an accessible pose-feature classification and interpretation workflow for behavioural neuroscience~\cite{goodwin2024simba}. CalMS21 supplies a mouse social-interaction benchmark with identity-separated data and frame-level annotations, making it the direct dataset reference for this project~\cite{sun2021calms21}. The upstream pose-estimation stage is itself an active area, including general-purpose tools such as DeepLabCut~\cite{mathis2018deeplabcut}; this project uses the released CalMS21 tracks rather than training a pose estimator.
 
-\subsection{ANN}
-This is another subsection about ANNs. Backpropagation enables training. Add a peer-reviewed citation here. \\
+\subsection{Alternative representations and classifier families}
+Behaviour can also be inferred from raw video pixels, as in DeepEthogram, or from learned trajectory representations, as in TREBA~\cite{bohnslav2021deepethogram,sun2021treba}. These approaches provide useful context for the input-representation question, although their results are not directly comparable to this project unless dataset, labels, and split protocol also match. Our empirical comparison uses four classical supervised families: nearest-neighbour voting~\cite{cover1967nearest}, tree ensembles~\cite{breiman2001random}, maximum-margin classification~\cite{cortes1995support}, and a multilayer perceptron (MLP), a feed-forward network trained by back-propagation~\cite{rumelhart1986learning}. The CalMS21 benchmark directly compares a fully connected model with LSTM, self-attention, and 1D convolutional sequence classifiers; its 1D convolutional model performs best~\cite{sun2021calms21}. That study uses temporal trajectory windows and reports class-averaged Task 1 results for attack, investigation, and mount. Our MLP instead predicts from each frame's engineered feature vector across all four labels, so the published results are context rather than an apples-to-apples target.
 
-If you're using the Option 1 as your project, this will be the major section for your report. Make sure, you divide this section into multiple sub-sections for the better organization. You should aim to have peer-reviewed citations (25-30 citations). Check the final project paper instructions for more details. \\
+\subsection{Validation and class imbalance}
+Frames from one recording are temporally and hierarchically related, so validation should respect the data structure instead of randomly dividing individual frames. Research on structured ecological data discusses blocked and grouped cross-validation for temporal, spatial, and hierarchical dependence~\cite{roberts2017crossvalidation}; here, complete videos are kept together. The four labels are imbalanced, which motivates reporting macro-F1 and per-class precision, recall, and F1 rather than relying on accuracy alone. Imbalanced-learning research reviews training strategies and evaluation measures~\cite{he2009imbalanced,sokolova2009metrics}; precision-recall analysis is also useful for examining rare classes in one-versus-rest views~\cite{saito2015precisionrecall}. These sources motivate explicit comparisons of natural-prevalence training with any train-only imbalance treatment.
 
-\noindent \textbf{Length:} 2 columns (Option 2, 3), 4-5 columns  (Option 1)\\
-\noindent \textbf{Marks:} 20\% (Option 2, 3), 40\% (Option 1)
+\noindent\textbf{Working literature map:} these references are the starting set for the background, not a claim that the final review is complete. The final Option 2 report requires a broader synthesis of 15--20 papers and a justified discussion of 3--5 methods.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Method} \label{sec:method}
 If you're using Option 2 or 3 then describe your method here. If you are using Option 1 you should call this "Main State-of-the-Art". You may use figures and diagrams. Prefer high-quality/high-res images. For example, check the UW campus Figure~\ref{fig:uw-campus}.Check the final project paper instructions for more details. Check the final project paper instructions for more details.\\
 
@@ -86,15 +84,15 @@ If you're using Option 1 then the section headline becomes ``Analysis'' only. He
 \begin{table}[bt]
 \caption{Result on test data. Table captions in the template is at the top (this is different from figures). The caption formatting is the same way, one liner summary followed by the detailed description. Always refer you table inside the text.\label{tab:results}}
 \centering
- \begin{tabular}{c c c c} 
+ \begin{tabular}{c c c c}
  \toprule
- Col1 & Col2 & Col2 & Col3 \\ [0.5ex] 
+ Col1 & Col2 & Col2 & Col3 \\ [0.5ex]
  \midrule
- 1 & 6 & 87837 & 787 \\ 
+ 1 & 6 & 87837 & 787 \\
  2 & 7 & 78 & 5415 \\
  3 & 545 & 778 & 7507 \\
  4 & 545 & 18744 & 7560 \\
- 5 & 88 & 788 & 6344 \\ [1ex] 
+ 5 & 88 & 788 & 6344 \\ [1ex]
  \bottomrule
  \end{tabular}
 \end{table}
@@ -110,19 +108,13 @@ Summarize your report with concluding remarks. Some future studies or recommenda
 \noindent \textbf{Marks:} 10\% (Conclusion + Abstract together)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Authors Contributions \& Remarks} 
+\section{Authors Contributions \& Remarks}
 No marks for this section. Feel free to skip this section. But if you want to tell us how each of the group members have contributed then add this section to your report. You may also add any other remarks that we should consider while marking your report. Keep it short and this won't be counted towards the final length of the report.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{references} \label{section:ref}
-References here. Include only sources cited in the paper. \emph{This section by itself can be removed since it will be generated automatically.} They do \textbf{not} count towards your 6 pages limit.\\
-
-\noindent \textbf{Length:} 2 columns (Option 2, 3), 3 columns (Option 1)\\
-\noindent \textbf{Marks:} 5\% (Option 2, 3), 10\% (Option 1)
-
-% Uncomment after adding the project's bibliography file and citations.
-% \bibliographystyle{unsrt}
-% \bibliography{references}
+% BibTeX prints only works cited in the text.
+\bibliographystyle{IEEEtran}
+\bibliography{references}
 
 
 \end{document}

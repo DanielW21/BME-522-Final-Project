@@ -19,3 +19,8 @@ __pycache__/
 !*.pdf
 *.aux
 *.log
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz

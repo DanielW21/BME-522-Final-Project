@@ -128,7 +128,6 @@ def main():
     context = create_ssl_context()
     raw = args.data_dir.resolve() / "raw"
     raw.mkdir(parents=True, exist_ok=True)
-    (args.data_dir / "processed").mkdir(parents=True, exist_ok=True)
     for name, checksum in DOWNLOADS.items():
         download(f"{SOURCE}/{name}?download=1", raw / name, checksum, context=context)
     extract(raw / "task1_classic_classification.zip", raw)
