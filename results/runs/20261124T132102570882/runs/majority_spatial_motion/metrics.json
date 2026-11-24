@@ -1,0 +1,33 @@
+{
+  "accuracy": 0.6357024597918638,
+  "macro_f1": 0.19432093409969997,
+  "weighted_f1": 0.4941211831849277,
+  "per_class": {
+    "attack": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 2998
+    },
+    "investigation": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 28469
+    },
+    "mount": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 5499
+    },
+    "other": {
+      "precision": 0.6357024597918638,
+      "recall": 1.0,
+      "f1": 0.7772837363987999,
+      "support": 64506
+    }
+  },
+  "validation_frames": 101472,
+  "validation_videos": 14
+}
