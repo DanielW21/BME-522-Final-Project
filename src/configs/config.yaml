@@ -48,5 +48,4 @@ model_params:
     alpha: 0.0001
     batch_size: 512
     learning_rate_init: 0.001
-    max_iter: 50
-    early_stopping: false
+    max_iter: 200
