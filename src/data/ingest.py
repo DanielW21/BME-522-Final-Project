@@ -146,6 +146,23 @@ def _assemble_split_parts(parts, feature_names):
     return result
 
 
+def _features_in_video_order(data, split_name, video_ids):
+    """Return one split's feature rows in a requested video ID order."""
+    source_video_ids = data[f"{split_name}_video_ids"]
+    if source_video_ids == video_ids:
+        return data[f"X_{split_name}"]
+
+    source_groups = {video_id: index for index, video_id in enumerate(source_video_ids)}
+    group_sizes = np.bincount(data[f"{split_name}_groups"], minlength=len(source_video_ids))
+    offsets = np.r_[0, np.cumsum(group_sizes)]
+    features = data[f"X_{split_name}"]
+    ordered_features = []
+    for video_id in video_ids:
+        group = source_groups[video_id]
+        ordered_features.append(features[offsets[group]:offsets[group + 1]])
+    return np.concatenate(ordered_features)
+
+
 def load_development_data(
     training_json,
     manifest_path,
@@ -159,10 +176,31 @@ def load_development_data(
     """
     if feature_set not in FEATURE_SETS:
         raise ValueError(f"Unknown feature set {feature_set!r}; choose from {list(FEATURE_SETS)}")
-    if feature_set == "treba":
+    if feature_set in ("treba", "spatial_motion_treba"):
         if feature_json is None:
-            raise ValueError("feature_json is required when feature_set='treba'.")
-        return load_treba_development_data(training_json, feature_json, manifest_path)
+            raise ValueError(f"feature_json is required when feature_set={feature_set!r}.")
+        treba_data = load_treba_development_data(
+            training_json, feature_json, manifest_path
+        )
+        if feature_set == "treba":
+            return treba_data
+
+        pose_data = load_development_data(
+            training_json, manifest_path, "spatial_motion"
+        )
+        result = dict(pose_data)
+        for split_name in ("train", "validation"):
+            treba_features = _features_in_video_order(
+                treba_data,
+                split_name,
+                pose_data[f"{split_name}_video_ids"],
+            )
+            result[f"X_{split_name}"] = np.concatenate(
+                [pose_data[f"X_{split_name}"], treba_features],
+                axis=1,
+            )
+        result["feature_names"] = list(FEATURE_SETS[feature_set])
+        return result
 
     assignments = read_split_manifest(manifest_path)
     feature_names = FEATURE_SETS[feature_set]

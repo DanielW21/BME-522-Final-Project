@@ -1,34 +1,34 @@
 # BME 522 Final Project
 
-Compare k-nearest neighbours, random forest, support vector machine, and a small
-neural network for frame-level mouse social behaviour classification using
-CalMS21 Task 1. Labels: attack, investigation, mount, and other.
+Frame-level classification of CalMS21 Task 1 mouse behavior labels: attack, investigation, mount, and other.
 
-## Set up the dataset
+## Set up
 
 ```sh
-python3 scripts/setup_data.py
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install numpy pandas scikit-learn matplotlib pyyaml ijson
+python scripts/setup_data.py
 ```
 
-If you get certificate verify error
+## Configure and run
+
+Edit `src/configs/config.yaml`.
+
+- Set feature sets and models to `true` or `false` under `run` to control which set of model and feature set you want to use.
+- The majority baseline uses no features and runs once
+- Set model parameters under `model_params`.
+- `spatial_motion_treba_pca` applies PCA to TREBA only
+- Set `treba_feature_params.n_features` to choose the number of PCA features.
+- `run.save_results` controls saving. Results go to `results/runs/<run.name>/`
+
+Then run the experiment:
 
 ```sh
-python3 -m pip install --upgrade certifi
-python3 scripts/setup_data.py
+python -m src.run_experiment
 ```
 
-## Planned modules
+## Models and next steps
 
-Add these files when implementing their corresponding steps:
-
-| Location                           | Responsibility                                              |
-| ---------------------------------- | ----------------------------------------------------------- |
-| `src/data/load_dataset.py`       | Read videos, keypoints, labels, and video IDs.              |
-| `src/data/split_dataset.py`      | Define reproducible train/validation/test video splits.     |
-| `src/features/spatial.py`        | Inter-mouse distances, relative orientation, and posture.   |
-| `src/features/motion.py`         | Speeds and short-term changes computed within each video.   |
-| `src/features/build_features.py` | Produce aligned features and labels for either feature set. |
-| `src/models/knn.py`              | k-nearest neighbours.                                       |
-| `src/models/random_forest.py`    | Random forest.                                              |
-| `src/models/svm.py`              | Support vector machine.                                     |
-| `src/models/mlp.py`              | Small neural network.                                       |
+- Majority and MLP are implemented.
+- KNN, random forest, and linear SVM are also wired in `src/models/build.py` ready to be built and tuned with settings in `model_params`. Tune then run the selected models.

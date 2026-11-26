@@ -8,14 +8,23 @@ project:
   runs_dir: results/runs
 
 run:
+  name: calms21_feature_comparison
   save_results: true
-  feature_sets: [spatial, spatial_motion]
+  feature_sets:
+    spatial: true
+    spatial_motion: true
+    spatial_motion_treba: true
+    spatial_motion_treba_pca: true # PCA on TREBA only
   models:
     majority: true
     knn: false
     random_forest: false
     svm: false
     mlp: true
+
+treba_feature_params:
+  n_features: 8
+  whiten: true
 
 preprocessing:
   imputation: median

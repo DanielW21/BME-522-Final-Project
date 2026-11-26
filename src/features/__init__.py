@@ -9,7 +9,11 @@ from src.features.pose import (
 
 
 TREBA_FEATURES = tuple(f"F{index:02d}" for index in range(1, 33))
-FEATURE_SETS = {**POSE_FEATURE_SETS, "treba": TREBA_FEATURES}
+FEATURE_SETS = {
+    **POSE_FEATURE_SETS,
+    "treba": TREBA_FEATURES,
+    "spatial_motion_treba": POSE_FEATURE_SETS["spatial_motion"] + TREBA_FEATURES,
+}
 
 
 __all__ = [

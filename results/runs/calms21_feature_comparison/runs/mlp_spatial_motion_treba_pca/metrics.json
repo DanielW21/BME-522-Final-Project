@@ -1,0 +1,35 @@
+{
+  "accuracy": 0.8793854462314727,
+  "macro_f1": 0.8038860907263065,
+  "weighted_f1": 0.8797019916316877,
+  "per_class": {
+    "attack": {
+      "precision": 0.6613545816733067,
+      "recall": 0.7198132088058706,
+      "f1": 0.6893467497204919,
+      "support": 2998
+    },
+    "investigation": {
+      "precision": 0.8065502031743826,
+      "recall": 0.8157293898626576,
+      "f1": 0.8111138276693095,
+      "support": 28469
+    },
+    "mount": {
+      "precision": 0.8081328751431844,
+      "recall": 0.7697763229678123,
+      "f1": 0.7884884045822855,
+      "support": 5499
+    },
+    "other": {
+      "precision": 0.9289631961108168,
+      "recall": 0.924239605618082,
+      "f1": 0.9265953809331385,
+      "support": 64506
+    }
+  },
+  "pca_components": 8,
+  "pca_variance_retained": 0.967556357383728,
+  "validation_frames": 101472,
+  "validation_videos": 14
+}

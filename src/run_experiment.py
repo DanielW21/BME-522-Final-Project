@@ -18,6 +18,7 @@ from src.evaluation.plots import (
     plot_per_class_metrics,
     plot_per_video_metrics,
 )
+from src.features.treba_pca import pca_treba_block
 from src.models.build import build_model
 
 
@@ -82,23 +83,58 @@ def main():
 
     run_dir = None
     if run["save_results"]:
-        run_dir = Path(project["runs_dir"]) / datetime.now().strftime("%Y%m%dT%H%M%S%f")
+        run_dir = Path(project["runs_dir"]) / run["name"]
+        base_run_dir = run_dir
+        suffix = 1
+        while run_dir.exists():
+            run_dir = base_run_dir.with_name(f"{base_run_dir.name} ({suffix})")
+            suffix += 1
         run_dir.mkdir(parents=True)
         shutil.copyfile(CONFIG_PATH, run_dir / "config.yaml")
+        (run_dir / "date.txt").write_text(
+            datetime.now().astimezone().isoformat(timespec="seconds") + "\n"
+        )
 
     results = []
-    for feature_set in run["feature_sets"]:
-        feature_json = project["features_json"] if feature_set == "treba" else None
+    majority_completed = False
+    for feature_set, feature_enabled in run["feature_sets"].items():
+        if not feature_enabled:
+            continue
+
+        source_feature_set = (
+            "spatial_motion_treba"
+            if feature_set == "spatial_motion_treba_pca"
+            else feature_set
+        )
+        feature_json = (
+            project["features_json"]
+            if source_feature_set in ("treba", "spatial_motion_treba")
+            else None
+        )
         data = load_development_data(
             project["training_json"],
             project["split_manifest"],
-            feature_set,
+            source_feature_set,
             feature_json,
         )
+        pca_metrics = {}
+        if feature_set == "spatial_motion_treba_pca":
+            data, pca_metrics = pca_treba_block(
+                data,
+                **config["treba_feature_params"],
+                imputation=config["preprocessing"]["imputation"],
+            )
 
-        for model_name, enabled in run["models"].items():
-            if not enabled:
+        for model_name, model_enabled in run["models"].items():
+            if not model_enabled:
                 continue
+            if model_name == "majority" and majority_completed:
+                continue
+
+            result_feature_set = feature_set
+            if model_name == "majority":
+                result_feature_set = "raw"
+                majority_completed = True
 
             model = build_model(
                 model_name,
@@ -118,10 +154,11 @@ def main():
                 label_names=LABEL_NAMES,
                 video_ids=validation_video_ids,
             )
+            evaluation["metrics"].update(pca_metrics)
 
             result = {
                 "model": model_name,
-                "feature_set": feature_set,
+                "feature_set": result_feature_set,
                 **evaluation,
             }
             results.append(result)

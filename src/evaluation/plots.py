@@ -66,16 +66,26 @@ def plot_model_comparison(run_results, metric="macro_f1", title=None, output_pat
         table = run_results
     else:
         table = compare_model_runs(run_results, metrics=(metric,))
-    labels = [f"{row.model}\n{row.feature_set}" for row in table.itertuples()]
+    feature_labels = {
+        "raw": "Raw",
+        "spatial": "Spatial",
+        "spatial_motion": "Spatial +\nmotion",
+        "spatial_motion_treba": "Spatial + motion\n+ TREBA",
+        "spatial_motion_treba_pca": "Spatial + motion\n+ TREBA PCA",
+    }
+    labels = [
+        f"{row.model.upper()}\n{feature_labels.get(row.feature_set, row.feature_set.replace('_', ' '))}"
+        for row in table.itertuples()
+    ]
 
-    fig, ax = plt.subplots(figsize=(max(8, len(labels) * 1.1), 4.8))
+    fig, ax = plt.subplots(figsize=(max(9, len(labels) * 1.9), 5))
     bars = ax.bar(range(len(labels)), table[metric], color="#5470a8")
     ax.set_xticks(range(len(labels)), labels)
     ax.set_ylim(0, 1)
     ax.set_ylabel(metric.replace("_", " ").title())
     ax.set_title(title or f"Model comparison: {metric.replace('_', ' ')}")
     ax.bar_label(bars, fmt="%.3f", padding=3, fontsize=8)
-    ax.tick_params(axis="x", labelrotation=0)
+    ax.tick_params(axis="x", labelrotation=0, labelsize=9)
     fig.tight_layout()
     return _save_figure(fig, output_path)
 
