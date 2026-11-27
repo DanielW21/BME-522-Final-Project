@@ -16,12 +16,12 @@ python scripts/setup_data.py
 Edit `src/configs/config.yaml`.
 
 - Set feature sets and models to `true` or `false` under `run` to control which set of model and feature set you want to use.
-- The majority baseline uses no features and runs once
 - Set model parameters under `model_params`.
 - `spatial_motion_treba_pca` applies PCA to TREBA only
 - Set `treba_feature_params.n_features` to choose the number of PCA features.
 - `run.save_results` controls saving. Results go to `results/runs/<run.name>/`
-
+- **please name your run accordingly so its easy to differentiate in results**
+  
 Then run the experiment:
 
 ```sh
